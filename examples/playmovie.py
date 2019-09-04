@@ -10,13 +10,13 @@ from matplotlib.pyplot import figure, draw, pause
 
 def main():
     p = ArgumentParser()
-    p.add_argument('infn', help='HDF5 file to analyze')
-    p.add_argument('key', help='HDF5 variable to access')
+    p.add_argument("infn", help="HDF5 file to analyze")
+    p.add_argument("key", help="HDF5 variable to access")
     p = p.parse_args()
 
     fn = Path(p.infn).expanduser()
 
-    with h5py.File(fn, 'r') as f:
+    with h5py.File(fn, "r") as f:
         imgs = f[p.key]
 
         ax = figure().gca()
@@ -27,5 +27,5 @@ def main():
             pause(0.05)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
