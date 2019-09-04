@@ -41,8 +41,8 @@ def main():
             print("saving", imgs.shape, "motion to", outdir)
 
             with h5py.File(motfn, "w") as f:
-                f["dx"] = imgs["x"]
-                f["dy"] = imgs["y"]
+                f.create_dataset("dx", data=imgs["x"], compression="gzip", compression_opts=1)
+                f.create_dataset("dy", data=imgs["y"], compression="gzip", compression_opts=1)
                 f["time"] = datetime.now().isoformat()
 
 
