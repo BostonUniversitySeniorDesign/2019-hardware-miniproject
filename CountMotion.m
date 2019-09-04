@@ -16,7 +16,7 @@ if isoctave
 else % matlab
   motion = h5read(h5fn, key);
 end
-motion = motion.motion;
+motion = motion.(key);
 
 %% lane geometry parameters, empirical based on camera perspective w.r.t. traffic
 
@@ -30,13 +30,14 @@ minv = 500;
 
 %% main loop -- 60 fps on Pi Zero !
 Ncount = 0;
-%tic
-for i = 1:size(motion, 3)
+Nframe = size(motion, 3);
+tic
+for i = 1:Nframe
   N = countlanes(motion(:,:,i), ilanes, iLPF, minv);
   Ncount = Ncount + N;
-  disp(Ncount)
 end
-%toc
+
+disp(['processed output at ', num2str(Nframe / toc, '%0.1f'), ' fps.'])
 
 end
 
