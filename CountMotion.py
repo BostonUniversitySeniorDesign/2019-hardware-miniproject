@@ -37,30 +37,30 @@ def main():
     # %% read user parameter
     C = configparser.ConfigParser()
     C.read_string(config_fn.read_text(), source=str(config_fn))
-    detect_max = C.getfloat("DEFAULT", "detect_max")
-    detect_min = C.getfloat("DEFAULT", "detect_min")
-    noise_min = C.getfloat("DEFAULT", "noise_min")
-    count_interval_seconds = C.getfloat("DEFAULT", "count_interval_seconds")
-    video_fps = C.getfloat("DEFAULT", "video_fps")
+    param = {"detect_max": C.getfloat("DEFAULT", "detect_max"),
+             "detect_min": C.getfloat("DEFAULT", "detect_min"),
+             "noise_min": C.getfloat("DEFAULT", "noise_min"),
+             "count_interval_seconds": C.getfloat("DEFAULT", "count_interval_seconds"),
+             "video_fps": C.getfloat("DEFAULT", "video_fps")}
 
-    frame_count_interval = int(video_fps * count_interval_seconds)
+    frame_count_interval = int(param["video_fps"] * param["count_interval_seconds"])
 
     with h5py.File(fn, "r") as f:
         mot = np.rot90(f[p.key][p.start:].astype(np.uint8), axes=(1, 2))
     # %% approximate elapsed time
-    time = np.arange(0, mot.shape[0] / video_fps, count_interval_seconds)
+    time = np.arange(0, mot.shape[0] / param["video_fps"], param["count_interval_seconds"])
     # %% discard background motion "noise"
-    bmot = mot > noise_min
+    bmot = mot > param["noise_min"]
     # %% create figure
     CarCount = np.zeros(time.size, dtype=int)
     j = 0
     L = mot.shape[-1]
-    iLPF = (int(L * 4 / 9), int(L * 5.2 / 9))
-    h = fig_create(doplot, mot[0], iLPF, detect_min, detect_max, time, CarCount)
+    param["iLPF"] = (int(L * 4 / 9), int(L * 5.2 / 9))
+    h = fig_create(doplot, mot[0], param, time, CarCount)
     # %% main program loop over each frame of motion data
     for i, m in enumerate(bmot):
         # %% process each frame
-        N = spatial_discrim(m, iLPF, detect_min, detect_max, h)
+        N = spatial_discrim(m, param, h)
         if i % frame_count_interval == 0:
             j += 1
             CarCount[j] = N
@@ -83,11 +83,13 @@ def main():
             f["count"] = CarCount
 
 
-def spatial_discrim(mot: np.ndarray, iLPF: typing.Tuple[int, int],
-                    detect_min: float, detect_max: float, h: dict) -> int:
+def spatial_discrim(mot: np.ndarray,
+                    p: typing.Dict[str, typing.Any],
+                    h: typing.Dict[str, typing.Any]) -> int:
     """
     implement spatial LPF for two lanes of traffic
     """
+    iLPF = p["iLPF"]
     # %% define two spatial lanes of traffic
     lane1 = mot[ilanes[0][0]:ilanes[0][1], :].sum(axis=0)
     lane2 = mot[ilanes[1][0]:ilanes[1][1], :].sum(axis=0)
@@ -95,8 +97,8 @@ def spatial_discrim(mot: np.ndarray, iLPF: typing.Tuple[int, int],
     Flane1 = np.fft.fftshift(abs(np.fft.fft(lane1)) ** 2)
     Flane2 = np.fft.fftshift(abs(np.fft.fft(lane2)) ** 2)
     # %% motion detected within magnitude limits
-    N1 = int(detect_min <= Flane1[iLPF[0]: iLPF[1]].sum() <= detect_max)
-    N2 = int(detect_min <= Flane2[iLPF[0]: iLPF[1]].sum() <= detect_max)
+    N1 = int(p["detect_min"] <= Flane1[iLPF[0]: iLPF[1]].sum() <= p["detect_max"])
+    N2 = int(p["detect_min"] <= Flane2[iLPF[0]: iLPF[1]].sum() <= p["detect_max"])
     # %% plot
     h["h21"].set_ydata(Flane1)
     h["h22"].set_ydata(Flane2)
@@ -105,8 +107,7 @@ def spatial_discrim(mot: np.ndarray, iLPF: typing.Tuple[int, int],
 
 
 def fig_create(doplot: bool, img: np.ndarray,
-               iLPF: typing.Tuple[int, int],
-               detect_min: float, detect_max: float,
+               p: typing.Dict[str, typing.Any],
                time: typing.Sequence[float],
                CarCount: typing.Sequence[int]) -> dict:
 
@@ -135,10 +136,10 @@ def fig_create(doplot: bool, img: np.ndarray,
     ax2.set_xlabel("Spatial Frequency bin (arbitrary units)")
     ax2.set_ylabel("magnitude$^2$")
     # %% setup rectangular spatial LPF for each lane -- cars are big
-    ax2.axvline(iLPF[0] - L // 2, color="red", linestyle="--")
-    ax2.axvline(iLPF[1] - L // 2, color="red", linestyle="--")
-    ax2.axhline(detect_min, linestyle="--")
-    ax2.axhline(detect_max, linestyle="--")
+    ax2.axvline(p["iLPF"][0] - L // 2, color="red", linestyle="--")
+    ax2.axvline(p["iLPF"][1] - L // 2, color="red", linestyle="--")
+    ax2.axhline(p["detect_min"], linestyle="--")
+    ax2.axhline(p["detect_max"], linestyle="--")
 
     ax3.set_title("cumulative car count")
     ax3.set_xlabel("elapsed time (seconds)")
