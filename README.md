@@ -13,7 +13,8 @@ Since we know cars usually travel within a road lane, we can exploit this fact t
 
 ## Code
 
-We include a few examples in Python:
+`CaptureMotion.py`
+captures h.264 motion vectors from the camera as computed by the GPU, and stores them to `motion.h5`
 
-* `CaptureMotion.py` this gets the h.264 motion vectors from the camera as computed by the GPU, and stores them to `motion.h5`
-* `docount.m` is a Matlab script (also runs in GNU Octave on the Pi directly, or your laptop) that counts objects without using OpenCV.  The same thing could be done equally well in Python.
+`CountMotion.m`
+counts moving objects in lanes using FFT of spatial motion data

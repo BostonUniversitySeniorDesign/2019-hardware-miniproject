@@ -15,7 +15,7 @@ motion = motion.motion;
 
 ilanes = [25, 27;
           35, 40];
-          
+
 L = size(motion, 2);
 iLPF = [round(L*4/9), round(L*5/9)];
 
