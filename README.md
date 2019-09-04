@@ -16,5 +16,5 @@ Since we know cars usually travel within a road lane, we can exploit this fact t
 `CaptureMotion.py`
 captures h.264 motion vectors from the camera as computed by the GPU, and stores them to `motion.h5`
 
-`CountMotion.m`
+`CountMotion.py`
 counts moving objects in lanes using FFT of spatial motion data
