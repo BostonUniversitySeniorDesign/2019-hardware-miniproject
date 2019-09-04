@@ -1,15 +1,17 @@
 #!/usr/bin/env python
-import numpy as np
+"""
+This script captures motion arrays from the PiCamera and saves them to an HDF5 file
+"""
 import picamera
 import picamera.array
 from pathlib import Path
-from argparse import ArgumentParser
+import argparse
 from datetime import datetime
 import h5py
 
 
 def main():
-    p = ArgumentParser()
+    p = argparse.ArgumentParser()
     p.add_argument('odir', help='output directory')
     p.add_argument('duration', help='record time length (seconds)', type=float)
     p.add_argument('-r', '--resolution', nargs=2, type=int, default=(640, 480))
@@ -34,13 +36,14 @@ def main():
             imgs = stream.array
 
             if imgs.shape[0] == 0:
-                raise ValueError("Record duration {} seconds may be too short".format(p.duration))
+                raise ValueError(f"Record duration {p.duration} seconds may be too short")
 
             print('saving', imgs.shape, 'motion to', outdir)
 
             with h5py.File(motfn, 'w') as f:
-                f['motion'] = np.hypot(imgs['x'], imgs['y'])
-                f['timestamp'] = datetime.now().isoformat()
+                f['dx'] = imgs['x']
+                f['dy'] = imgs['y']
+                f['time'] = datetime.now().isoformat()
 
 
 if __name__ == '__main__':
