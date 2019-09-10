@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.com/BostonUniversitySeniorDesign/2019-hardware-miniproject.svg?branch=master)](https://travis-ci.com/BostonUniversitySeniorDesign/2019-hardware-miniproject)
+[![Actions Status](https://github.com/BostonUniversitySeniorDesign/2019-hardware-miniproject/workflows/ci/badge.svg)](https://github.com/BostonUniversitySeniorDesign/2019-hardware-miniproject/actions)
 
 Please see the
 [Wiki](https://github.com/BostonUniversitySeniorDesign/2019-hardware-miniproject/wiki)
