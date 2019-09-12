@@ -100,8 +100,9 @@ def spatial_discrim(mot: np.ndarray,
     N1 = int(p["detect_min"] <= Flane1[iLPF[0]: iLPF[1]].sum() <= p["detect_max"])
     N2 = int(p["detect_min"] <= Flane2[iLPF[0]: iLPF[1]].sum() <= p["detect_max"])
     # %% plot
-    h["h21"].set_ydata(Flane1)
-    h["h22"].set_ydata(Flane2)
+    if "h21" in h:
+        h["h21"].set_ydata(Flane1)
+        h["h22"].set_ydata(Flane2)
 
     return N1 + N2
 
