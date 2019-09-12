@@ -32,23 +32,33 @@ def main():
     p = p.parse_args()
 
     doplot = p.noplot and figure is not None
+    # %% main loop
+    CarCount, time = counter(p.infn, p.key, p.start, doplot, p.saveplot)
+    # %% write car counts to disk
+    if p.outfn is not None:
+        outfn = Path(p.outfn).expanduser()
+        with h5py.File(outfn, "w") as f:
+            f["time"] = time
+            f["count"] = CarCount
 
-    fn = Path(p.infn).expanduser()
-    # %% read user parameter
-    C = configparser.ConfigParser()
-    C.read_string(config_fn.read_text(), source=str(config_fn))
-    param = {"detect_max": C.getfloat("DEFAULT", "detect_max"),
-             "detect_min": C.getfloat("DEFAULT", "detect_min"),
-             "noise_min": C.getfloat("DEFAULT", "noise_min"),
-             "count_interval_seconds": C.getfloat("DEFAULT", "count_interval_seconds"),
-             "video_fps": C.getfloat("DEFAULT", "video_fps")}
+    if not doplot:
+        print("Per frame car count", CarCount)
+        print("Total car count", CarCount.sum())
+
+
+def counter(
+    h5fn: Path, key: str, start: int = 0, doplot: bool = False, saveplot: str = None
+) -> typing.Tuple[np.ndarray, np.ndarray]:
+    param = get_param(config_fn)
 
     frame_count_interval = int(param["video_fps"] * param["count_interval_seconds"])
 
-    with h5py.File(fn, "r") as f:
-        mot = np.rot90(f[p.key][p.start:].astype(np.uint8), axes=(1, 2))
+    if not h5fn.is_file():
+        raise FileNotFoundError(h5fn)
+    with h5py.File(h5fn, "r") as f:
+        mot = np.rot90(f[key][start:].astype(np.uint8), axes=(1, 2))
     # %% approximate elapsed time
-    time = np.arange(0, mot.shape[0] / param["video_fps"], param["count_interval_seconds"])
+    time = np.arange(0, mot.shape[0] / param["video_fps"] + param["count_interval_seconds"], param["count_interval_seconds"])
     # %% discard background motion "noise"
     bmot = mot > param["noise_min"]
     # %% create figure
@@ -73,26 +83,34 @@ def main():
             h["fg"].canvas.draw()
             h["fg"].canvas.flush_events()
             pause(0.001)
-            if p.saveplot:
-                h["fg"].savefig(p.saveplot + f"{i:05d}.png", bbox_inches="tight", dpi=100)
-    # %% write car counts to disk
-    if p.outfn is not None:
-        outfn = Path(p.outfn).expanduser()
-        with h5py.File(outfn, "w") as f:
-            f["time"] = time
-            f["count"] = CarCount
+            if saveplot:
+                h["fg"].savefig(saveplot + f"{i:05d}.png", bbox_inches="tight", dpi=100)
+
+    return CarCount, time
 
 
-def spatial_discrim(mot: np.ndarray,
-                    p: typing.Dict[str, typing.Any],
-                    h: typing.Dict[str, typing.Any]) -> int:
+def get_param(fn: Path) -> typing.Dict[str, typing.Any]:
+    C = configparser.ConfigParser()
+    C.read_string(config_fn.read_text(), source=str(config_fn))
+    param = {
+        "detect_max": C.getfloat("DEFAULT", "detect_max"),
+        "detect_min": C.getfloat("DEFAULT", "detect_min"),
+        "noise_min": C.getfloat("DEFAULT", "noise_min"),
+        "count_interval_seconds": C.getfloat("DEFAULT", "count_interval_seconds"),
+        "video_fps": C.getfloat("DEFAULT", "video_fps"),
+    }
+
+    return param
+
+
+def spatial_discrim(mot: np.ndarray, p: typing.Dict[str, typing.Any], h: typing.Dict[str, typing.Any]) -> int:
     """
     implement spatial LPF for two lanes of traffic
     """
     iLPF = p["iLPF"]
     # %% define two spatial lanes of traffic
-    lane1 = mot[ilanes[0][0]:ilanes[0][1], :].sum(axis=0)
-    lane2 = mot[ilanes[1][0]:ilanes[1][1], :].sum(axis=0)
+    lane1 = mot[ilanes[0][0]: ilanes[0][1], :].sum(axis=0)
+    lane2 = mot[ilanes[1][0]: ilanes[1][1], :].sum(axis=0)
     # %% motion PSD
     Flane1 = np.fft.fftshift(abs(np.fft.fft(lane1)) ** 2)
     Flane2 = np.fft.fftshift(abs(np.fft.fft(lane2)) ** 2)
@@ -107,10 +125,9 @@ def spatial_discrim(mot: np.ndarray,
     return N1 + N2
 
 
-def fig_create(doplot: bool, img: np.ndarray,
-               p: typing.Dict[str, typing.Any],
-               time: typing.Sequence[float],
-               CarCount: typing.Sequence[int]) -> dict:
+def fig_create(
+    doplot: bool, img: np.ndarray, p: typing.Dict[str, typing.Any], time: typing.Sequence[float], CarCount: typing.Sequence[int]
+) -> dict:
 
     if not doplot:
         return {}
@@ -119,9 +136,7 @@ def fig_create(doplot: bool, img: np.ndarray,
     ax1, ax2, ax3 = fg.subplots(3, 1)
     fg.suptitle("spatial FFT car counting")
 
-    h = {"fg": fg,
-         "h1": ax1.imshow(img, origin="upper"),
-         "t1": ax1.set_title("")}
+    h = {"fg": fg, "h1": ax1.imshow(img, origin="upper"), "t1": ax1.set_title("")}
     # plot lanes
     ax1.axhline(ilanes[0][0], color="cyan", linestyle="--")
     ax1.axhline(ilanes[0][1], color="cyan", linestyle="--")
@@ -130,8 +145,8 @@ def fig_create(doplot: bool, img: np.ndarray,
 
     L = img.shape[-1]
     fx = np.arange(-L // 2, L // 2)
-    h["h21"], = ax2.plot(fx, [0]*fx.size)
-    h["h22"], = ax2.plot(fx, [0]*fx.size)
+    h["h21"], = ax2.plot(fx, [0] * fx.size)
+    h["h22"], = ax2.plot(fx, [0] * fx.size)
     ax2.set_title("Spatial frequency")
     ax2.set_ylim(0, max_psd)
     ax2.set_xlabel("Spatial Frequency bin (arbitrary units)")
