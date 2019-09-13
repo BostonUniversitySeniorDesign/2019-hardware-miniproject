@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
 This script captures motion arrays from the PiCamera and saves them to an HDF5 file
 """
