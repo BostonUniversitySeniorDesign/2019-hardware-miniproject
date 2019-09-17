@@ -24,7 +24,7 @@ def capture(video_file: Path, duration_sec: float, resolution: typing.Tuple[int,
             camera.start_recording(str(video_file), format="h264", motion_output=stream)
             camera.wait_recording(duration_sec)
             camera.stop_recording()
-
+            # imgs is a 3-D Numpy array, Nframes x X x Y
             imgs = stream.array
 
     if imgs.shape[0] == 0:
