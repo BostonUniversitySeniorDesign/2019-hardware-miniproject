@@ -47,6 +47,8 @@ def counter(
     with h5py.File(h5fn, "r") as f:
         if isinstance(key, str):
             mot = np.rot90(f[key][start:].astype(np.uint8), axes=(1, 2))
+        elif isinstance(key, (tuple, list)) and len(key) == 1:
+            mot = np.rot90(f[key[0]][start:].astype(np.uint8), axes=(1, 2))
         elif isinstance(key, (tuple, list)) and len(key) == 2:
             mot = np.rot90(np.hypot(f[key[0]][start:], f[key[1]][start:]).astype(np.uint8), axes=(1, 2))
         else:
