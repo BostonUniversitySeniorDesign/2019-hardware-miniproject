@@ -49,6 +49,8 @@ def main():
 def counter(
     h5fn: Path, key: str, start: int = 0, doplot: bool = False, saveplot: str = None
 ) -> typing.Tuple[np.ndarray, np.ndarray]:
+
+    h5fn = Path(h5fn).expanduser()
     param = get_param(config_fn)
 
     frame_count_interval = int(param["video_fps"] * param["count_interval_seconds"])
@@ -90,8 +92,9 @@ def counter(
 
 
 def get_param(fn: Path) -> typing.Dict[str, typing.Any]:
+    fn = Path(fn).expanduser()
     C = configparser.ConfigParser()
-    C.read_string(config_fn.read_text(), source=str(config_fn))
+    C.read_string(fn.read_text(), source=str(fn))
     param = {
         "detect_max": C.getfloat("DEFAULT", "detect_max"),
         "detect_min": C.getfloat("DEFAULT", "detect_min"),
