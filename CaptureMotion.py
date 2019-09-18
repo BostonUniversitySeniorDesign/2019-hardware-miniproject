@@ -41,6 +41,21 @@ def write_hdf5(imgs, time: str, motion_file: Path):
         f["time"] = time
 
 
+def main(outdir: Path, duration_sec: float, resolution: typing.Tuple[int, int], fps: int) -> Path:
+    outdir = Path(outdir).expanduser() / datetime.now().isoformat()[:-10].replace(":", "")
+    outdir.mkdir(parents=True, exist_ok=True)
+
+    video_file = outdir / "raw.mp4"
+    print("writing motion vectors to", video_file)
+    imgs, time = capture(video_file, duration_sec, resolution, fps)
+
+    motion_file = outdir / "motion.h5"
+    print("saving", imgs.shape, "motion data to", motion_file)
+    write_hdf5(imgs, time, motion_file)
+
+    return outdir
+
+
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("outdir", help="output directory")
@@ -49,12 +64,4 @@ if __name__ == "__main__":
     p.add_argument("-fps", type=int, default=30)
     p = p.parse_args()
 
-    outdir = Path(p.outdir).expanduser() / datetime.now().isoformat()[:-10].replace(":", "")
-    outdir.mkdir(parents=True, exist_ok=True)
-    video_file = outdir / "raw.mp4"
-    print("writing motion vectors to", video_file)
-    imgs, time = capture(video_file, p.duration, p.resolution, p.fps)
-
-    motion_file = outdir / "motion.h5"
-    print("saving", imgs.shape, "motion data to", motion_file)
-    write_hdf5(imgs, time, motion_file)
+    main(p.outdir, p.duration, p.resolution, p.fps)
