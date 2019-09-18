@@ -16,7 +16,7 @@ def test_missing(tmp_path):
         counter(h5fn, "foo")
 
 
-@pytest.mark.parametrize('filename', [h5fn, str(h5fn)])
+@pytest.mark.parametrize("filename", [h5fn, str(h5fn)])
 def test_counter(filename):
     count, time = counter(filename, "dxdy")
 
@@ -24,7 +24,7 @@ def test_counter(filename):
     assert count.sum() == 113
 
 
-@pytest.mark.parametrize('filename', [configfn, str(configfn)])
+@pytest.mark.parametrize("filename", [configfn, str(configfn)])
 def test_get_param(filename):
     params = get_param(filename)
     assert isinstance(params, dict)
