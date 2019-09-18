@@ -6,11 +6,6 @@ import configparser
 import numpy as np
 import typing
 
-try:
-    from matplotlib.pyplot import figure, pause
-except ImportError:
-    figure = None
-
 config_fn = Path(__file__).parent / "config.ini"
 
 # %% user parameters, depend on camera perspective vs. lanes of traffic.
@@ -21,22 +16,14 @@ max_cumulative = 100
 max_psd = 1000
 
 
-def main():
-    p = ArgumentParser()
-    p.add_argument("infn", help="HDF5 motion file to analyze")
-    p.add_argument("key", help="HDF5 variable name with motion data")
-    p.add_argument("-i", "--start", help="starting frame of video to process", type=int, default=0)
-    p.add_argument("-o", "--outfn", help="write car counts to disk")
-    p.add_argument("-q", "--noplot", help="do not make plots (save CPU)", action="store_false")
-    p.add_argument("-s", "--saveplot", help="preview save name")
-    p = p.parse_args()
-
-    doplot = p.noplot and figure is not None
+def main(
+    infn: Path, variable_name: typing.Sequence[str], istart: int = 0, outfn: Path = None, doplot: bool = True, saveplot: str = None
+):
     # %% main loop
-    CarCount, time = counter(p.infn, p.key, p.start, doplot, p.saveplot)
+    CarCount, time = counter(h5fn=infn, key=variable_name, start=istart, doplot=doplot, saveplot=saveplot)
     # %% write car counts to disk
-    if p.outfn is not None:
-        outfn = Path(p.outfn).expanduser()
+    if outfn is not None:
+        outfn = Path(outfn).expanduser()
         with h5py.File(outfn, "w") as f:
             f["time"] = time
             f["count"] = CarCount
@@ -47,7 +34,7 @@ def main():
 
 
 def counter(
-    h5fn: Path, key: str, start: int = 0, doplot: bool = False, saveplot: str = None
+    h5fn: Path, key: typing.Sequence[str], start: int = 0, doplot: bool = False, saveplot: str = None
 ) -> typing.Tuple[np.ndarray, np.ndarray]:
 
     h5fn = Path(h5fn).expanduser()
@@ -58,7 +45,12 @@ def counter(
     if not h5fn.is_file():
         raise FileNotFoundError(h5fn)
     with h5py.File(h5fn, "r") as f:
-        mot = np.rot90(f[key][start:].astype(np.uint8), axes=(1, 2))
+        if isinstance(key, str):
+            mot = np.rot90(f[key][start:].astype(np.uint8), axes=(1, 2))
+        elif isinstance(key, (tuple, list)) and len(key) == 2:
+            mot = np.rot90(np.hypot(f[key[0]][start:], f[key[1]][start:]).astype(np.uint8), axes=(1, 2))
+        else:
+            raise ValueError(f"not sure what variable {key} you are trying to get in {h5fn}")
     # %% approximate elapsed time
     time = np.arange(0, mot.shape[0] / param["video_fps"] + param["count_interval_seconds"], param["count_interval_seconds"])
     # %% discard background motion "noise"
@@ -68,6 +60,8 @@ def counter(
     j = 0
     L = mot.shape[-1]
     param["iLPF"] = (int(L * 4 / 9), int(L * 5.2 / 9))
+    if doplot:
+        from matplotlib.pyplot import pause
     h = fig_create(doplot, mot[0], param, time, CarCount)
     # %% main program loop over each frame of motion data
     for i, m in enumerate(bmot):
@@ -112,14 +106,14 @@ def spatial_discrim(mot: np.ndarray, p: typing.Dict[str, typing.Any], h: typing.
     """
     iLPF = p["iLPF"]
     # %% define two spatial lanes of traffic
-    lane1 = mot[ilanes[0][0]: ilanes[0][1], :].sum(axis=0)
-    lane2 = mot[ilanes[1][0]: ilanes[1][1], :].sum(axis=0)
+    lane1 = mot[ilanes[0][0]:ilanes[0][1], :].sum(axis=0)
+    lane2 = mot[ilanes[1][0]:ilanes[1][1], :].sum(axis=0)
     # %% motion PSD
     Flane1 = np.fft.fftshift(abs(np.fft.fft(lane1)) ** 2)
     Flane2 = np.fft.fftshift(abs(np.fft.fft(lane2)) ** 2)
     # %% motion detected within magnitude limits
-    N1 = int(p["detect_min"] <= Flane1[iLPF[0]: iLPF[1]].sum() <= p["detect_max"])
-    N2 = int(p["detect_min"] <= Flane2[iLPF[0]: iLPF[1]].sum() <= p["detect_max"])
+    N1 = int(p["detect_min"] <= Flane1[iLPF[0]:iLPF[1]].sum() <= p["detect_max"])
+    N2 = int(p["detect_min"] <= Flane2[iLPF[0]:iLPF[1]].sum() <= p["detect_max"])
     # %% plot
     if "h21" in h:
         h["h21"].set_ydata(Flane1)
@@ -134,6 +128,8 @@ def fig_create(
 
     if not doplot:
         return {}
+
+    from matplotlib.pyplot import figure
 
     fg = figure(figsize=(8, 10))
     ax1, ax2, ax3 = fg.subplots(3, 1)
@@ -174,4 +170,13 @@ def fig_create(
 
 
 if __name__ == "__main__":
-    main()
+    p = ArgumentParser()
+    p.add_argument("infn", help="HDF5 motion file to analyze")
+    p.add_argument("variable_name", help="HDF5 variable name with motion data (e.g. dx or dy)", nargs="+")
+    p.add_argument("-i", "--start", help="starting frame of video to process", type=int, default=0)
+    p.add_argument("-o", "--outfn", help="write car counts to disk")
+    p.add_argument("-q", "--noplot", help="do not make plots (save CPU)", action="store_false")
+    p.add_argument("-s", "--saveplot", help="preview save name")
+    p = p.parse_args()
+
+    main(p.infn, p.variable_name, istart=p.start, outfn=p.outfn, doplot=p.noplot, saveplot=p.saveplot)
