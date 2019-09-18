@@ -5,6 +5,7 @@ from pathlib import Path
 import configparser
 import numpy as np
 import typing
+import sys
 
 config_fn = Path(__file__).parent / "config.ini"
 
@@ -62,9 +63,13 @@ def counter(
     j = 0
     L = mot.shape[-1]
     param["iLPF"] = (int(L * 4 / 9), int(L * 5.2 / 9))
+    h: typing.Dict[str, typing.Any] = {}
     if doplot:
-        from matplotlib.pyplot import pause
-    h = fig_create(doplot, mot[0], param, time, CarCount)
+        try:
+            from matplotlib.pyplot import pause
+            h = fig_create(doplot, mot[0], param, time, CarCount)
+        except Exception as exc:
+            print(f"Matplotlib not available, skipping plots  {exc}", file=sys.stderr)
     # %% main program loop over each frame of motion data
     for i, m in enumerate(bmot):
         # %% process each frame
