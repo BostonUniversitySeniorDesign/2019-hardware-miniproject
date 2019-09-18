@@ -69,6 +69,7 @@ def counter(
             from matplotlib.pyplot import pause
             h = fig_create(doplot, mot[0], param, time, CarCount)
         except Exception as exc:
+            doplot = False
             print(f"Matplotlib not available, skipping plots  {exc}", file=sys.stderr)
     # %% main program loop over each frame of motion data
     for i, m in enumerate(bmot):
