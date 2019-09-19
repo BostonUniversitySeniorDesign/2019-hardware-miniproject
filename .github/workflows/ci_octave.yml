@@ -1,8 +1,10 @@
+name: ci_octave
+
 on: [push, pull_request]
 
 jobs:
 
-  lint:
+  counting:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1

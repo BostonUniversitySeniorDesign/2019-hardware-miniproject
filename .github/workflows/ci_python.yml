@@ -1,3 +1,5 @@
+name: ci_python
+
 on: [push, pull_request]
 
 jobs:

@@ -23,8 +23,9 @@ assert(is_file(h5fn), [h5fn, ' is not a file.'])
 
 if isoctave
   if iscell(key)
-    motion = load(h5fn, key);
-    motion = hypot(motion.(key{1}), motion.key{2});
+    x = load(h5fn, key{1});
+    y = load(h5fn, key{2});
+    motion = hypot(x.(key{1}), y.(key{2}));
   else
     motion = load(h5fn, key);
     motion = abs(motion.(key));

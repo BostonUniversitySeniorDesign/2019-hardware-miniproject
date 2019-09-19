@@ -4,7 +4,7 @@ from CountMotion import counter, get_param
 from pathlib import Path
 
 R = Path(__file__).parent
-h5fn = R / "data" / "motion.h5"
+car_fn = R / "data" / "motion.h5"
 configfn = R / "config.ini"
 
 
@@ -13,15 +13,17 @@ def test_missing(tmp_path):
         counter(tmp_path, "foo")
 
     with pytest.raises(KeyError):
-        counter(h5fn, "foo")
+        counter(car_fn, "foo")
 
 
-@pytest.mark.parametrize("filename", [h5fn, str(h5fn)])
-def test_counter(filename):
-    count, time = counter(filename, "dxdy")
+@pytest.mark.parametrize(
+    "filename, key, total", [(car_fn, "dxdy", 115), (str(car_fn), "dxdy", 115), (R / "data/motion_hand.h5", ["dx", "dy"], 3)]
+)
+def test_counter(filename, key, total):
+    count, time = counter(filename, key)
 
     assert count.size == time.size
-    assert count.sum() == 115
+    assert count.sum() == total
 
 
 @pytest.mark.parametrize("filename", [configfn, str(configfn)])
