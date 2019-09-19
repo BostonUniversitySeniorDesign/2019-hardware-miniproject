@@ -50,8 +50,6 @@ def counter(
             raise ValueError(f"not sure what variable {key} you are trying to get in {h5fn}")
     # %% approximate elapsed time
     time = np.arange(0, mot.shape[0] / param["video_fps"] + param["count_interval_seconds"], param["count_interval_seconds"])
-    # %% discard background motion "noise"
-    bmot = mot > param["noise_min"]
     # %% create figure
     CarCount = np.zeros(time.size, dtype=int)
     j = 0
@@ -67,7 +65,7 @@ def counter(
             doplot = False
             print(f"Matplotlib not available, skipping plots  {exc}", file=sys.stderr)
     # %% main program loop over each frame of motion data
-    for i, m in enumerate(bmot):
+    for i, m in enumerate(mot):
         # %% process each lane
         N = 0
         for k in range(MAX_LANES):
@@ -101,7 +99,6 @@ def get_param(fn: Path) -> typing.Dict[str, typing.Any]:
     param: typing.Dict[str, typing.Any] = {
         "detect_max": C.getfloat("filter", "detect_max"),
         "detect_min": C.getfloat("filter", "detect_min"),
-        "noise_min": C.getint("filter", "noise_min"),
         "count_interval_seconds": C.getfloat("filter", "count_interval_seconds"),
         "video_fps": C.getfloat("video", "video_fps"),
         "max_cumulative": C.getint("plot", "max_cumulative", fallback=None),

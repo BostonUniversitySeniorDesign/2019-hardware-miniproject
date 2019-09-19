@@ -1,13 +1,17 @@
-function Ncount = CountMotion(h5fn, key)
+function CarCount = CountMotion(h5fn, key, doplot)
 %% CountMotion  load motion data and count vehicles
 %
 %%% inputs
 % * h5fn: HDF5 filename
-% * key: HDF5 variable with desired data
+% * key: HDF5 variable with desired data -- scalartext or cell
+% * doplot: show movie of data
 %
-narginchk(2,2)
+narginchk(2, 3)
 validateattributes(h5fn, {'string','char'}, {'vector'})
-validateattributes(key, {'string','char'}, {'vector'})
+if nargin < 3
+  doplot = false;
+end
+validateattributes(doplot, {'logical'}, {'scalar'})
 
 MAX_LANES = 4;
 
@@ -18,32 +22,70 @@ addpath([cwd, filesep, 'matlab'])
 assert(is_file(h5fn), [h5fn, ' is not a file.'])
 
 if isoctave
-  if strcmp(key(1), '/')
-    % Matlab wants "/foo" while Octave wants "foo"
-    key = key(2:end);
+  if iscell(key)
+    motion = load(h5fn, key);
+    motion = hypot(motion.(key{1}), motion.key{2});
+  else
+    motion = load(h5fn, key);
+    motion = abs(motion.(key));
   end
-  motion = load(h5fn, key);
-  motion = motion.(key);
 else % matlab
-  motion = h5read(h5fn, key);
+  if iscell(key)
+    assert(length(key) == 2, 'specify dx dy')
+    x = single(h5read(h5fn, fix_key(key{1})));
+    y = single(h5read(h5fn, fix_key(key{2})));
+    motion = hypot(x, y);
+  else
+    motion = abs(single(h5read(h5fn, fix_key(key))));
+  end
 end
+
+motion = flipud(motion);
 
 %% lane geometry parameters, empirical based on camera perspective w.r.t. traffic
 param = read_params([cwd, filesep, 'config.ini']);
 
+frame_count_interval = round(param.video_fps * param.count_interval_seconds);
+% approximate elapsed time
+time = 0:param.count_interval_seconds:size(motion,3) / param.video_fps + param.count_interval_seconds;
+
 L = size(motion, 2);
-iLPF = [round(L*4/9), round(L*5/9)];
+iLPF = [round(L*4/9), round(L*5.2/9)];
 
 %% main loop -- 60 fps on Pi Zero !
 Nframe = size(motion, 3);
-Ncount = zeros(1,Nframe);
+CarCount = zeros(1, length(time));
+j = 1;
+if doplot
+  fg = figure(1); clf(1)
+  ax = axes('parent', fg, 'nextplot', 'add');
+  h = imagesc(ax, motion(:,:,1));
+  set(ax, 'ydir', 'reverse')
+  color = {'cyan', 'green', 'white', 'yellow'};
+  for m = 1:MAX_LANES
+    k = ['lane', sprintf('%d', m)];
+    x1 = param.(k);
+    if isempty(x1)
+      continue
+    end
+    plot(ax, [1, size(motion,2)], [x1(1), x1(1)], 'color', color{m}, 'linestyle', '--')
+    plot(ax, [1, size(motion,2)], [x1(2), x1(2)], 'color', color{m}, 'linestyle', '--')
+  end
+end
 tic
 for i = 1:Nframe
-  for j = 1:MAX_LANES
-    k = ['lane', sprintf('%d', j)];
-    N(j) = spatial_discrim(motion(:,:,i), param.(k), iLPF, param.detect_min); %#ok<AGROW>
+  for m = 1:MAX_LANES
+    k = ['lane', sprintf('%d', m)];
+    N(m) = spatial_discrim(motion(:,:,i), param.(k), iLPF, param.detect_min); %#ok<AGROW>
   end
-  Ncount(i) = sum(N);
+  if mod(i, frame_count_interval) == 0
+    CarCount(j) = sum(N);
+    j = j + 1;
+  end
+  if doplot
+    set(h, 'cdata', motion(:,:,i))
+    pause(0.1)
+  end
 end
 
 disp(['processed output at ', num2str(Nframe / toc, '%0.1f'), ' fps.'])
@@ -73,6 +115,8 @@ validateattributes(ilane, {'numeric'}, {'integer', 'positive', 'numel', 2})
 validateattributes(iLPF, {'numeric'}, {'integer', 'positive', 'numel', 2})
 validateattributes(detect_min, {'numeric'}, {'real', 'scalar', 'nonnegative'})
 
+% lane indices were chosen in zero-based Python
+ilane = max(ilane+1, 1);
 %% average motion over lane width
 lane = sum(mot(ilane(1):ilane(2), :), 1);
 %% compute spatial spectral power
@@ -103,5 +147,22 @@ while ~feof(fid)
 end
 
 fclose(fid);
+
+end
+
+
+function key = fix_key(key)
+%% Matlab wants "/foo" while Octave wants "foo"
+validateattributes(key, {'string', 'char'}, {'vector'})
+
+if isoctave
+  if strcmp(key(1), '/')
+    key = key(2:end);
+  end
+else
+  if ~strcmp(key(1), '/')
+    key = ['/', key];
+  end
+end
 
 end
