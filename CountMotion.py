@@ -82,7 +82,7 @@ def counter(
         # %% save plots
         if doplot:
             h["t1"].set_text(f"h.264 difference frames: index {i}, elapsed seconds {time[j]}")
-            h["h1"].set_data(mot[i])
+            h["h1"].set_data(m)
             h["fg"].canvas.draw()
             h["fg"].canvas.flush_events()
             pause(0.001)
@@ -148,7 +148,7 @@ def fig_create(
     ax1, ax2, ax3 = fg.subplots(3, 1)
     fg.suptitle("spatial FFT car counting")
 
-    h = {"fg": fg, "h1": ax1.imshow(img, origin="upper"), "t1": ax1.set_title("")}
+    h = {"fg": fg, "h1": ax1.imshow(img, origin="upper", vmin=0, vmax=90), "t1": ax1.set_title("")}
     # plot lanes
     colors = ("cyan", "orange", "white", "yellow")
     for k in range(MAX_LANES):
