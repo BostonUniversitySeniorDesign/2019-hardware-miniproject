@@ -1,22 +1,30 @@
-function CountMotion(h5fn, key)
+function Ncount = CountMotion(h5fn, key)
 %% CountMotion  load motion data and count vehicles
 %
 %%% inputs
 % * h5fn: HDF5 filename
 % * key: HDF5 variable with desired data
 %
-
+narginchk(2,2)
 validateattributes(h5fn, {'string','char'}, {'vector'})
 validateattributes(key, {'string','char'}, {'vector'})
+
+cwd = fileparts(mfilename('fullpath'));
+addpath([cwd, filesep, 'matlab'])
+
 %% load motion data
-assert(exist(h5fn,'file')==2, [h5fn, ' does not exist'])
+assert(is_file(h5fn), [h5fn, ' is not a file.'])
 
 if isoctave
+  if strcmp(key(1), '/');
+    % Matlab wants "/foo" while Octave wants "foo"
+    key = key(2:end);
+  end
   motion = load(h5fn, key);
+  motion = motion.(key);
 else % matlab
   motion = h5read(h5fn, key);
 end
-motion = motion.(key);
 
 %% lane geometry parameters, empirical based on camera perspective w.r.t. traffic
 
@@ -29,12 +37,11 @@ iLPF = [round(L*4/9), round(L*5/9)];
 minv = 500;
 
 %% main loop -- 60 fps on Pi Zero !
-Ncount = 0;
 Nframe = size(motion, 3);
+Ncount = zeros(1,Nframe);
 tic
 for i = 1:Nframe
-  N = countlanes(motion(:,:,i), ilanes, iLPF, minv);
-  Ncount = Ncount + N;
+  Ncount(i) = countlanes(motion(:,:,i), ilanes, iLPF, minv);
 end
 
 disp(['processed output at ', num2str(Nframe / toc, '%0.1f'), ' fps.'])
@@ -50,10 +57,11 @@ function N = countlanes(mot, ilanes, iLPF, minv)
 % * ilanes: N x 2 pixel "upper / lower" boundaries for each lane
 % * iLPF: spatial low pass filter indices
 % * minv: power detection threshold
-
+%
+narginchk(4,4)
 validateattributes(mot, {'numeric'}, {'real', '2d'})
-validateattributes(ilanes, {'numeric'}, {'real', 'nonnegative', 'size', [NaN, 2]})
-validateattributes(iLPF, {'numeric'}, {'real', 'numel', 2})
+validateattributes(ilanes, {'numeric'}, {'integer', 'positive', 'size', [NaN, 2]})
+validateattributes(iLPF, {'numeric'}, {'integer', 'positive', 'numel', 2})
 validateattributes(minv, {'numeric'}, {'real', 'scalar', 'nonnegative'})
 
 Nlanes = size(ilanes(1));
