@@ -8,11 +8,7 @@ import typing
 import sys
 
 config_fn = Path(__file__).parent / "config.ini"
-
-# %% user parameters, depend on camera perspective vs. lanes of traffic.
-# these are for mostly horizontal traffic flow near bottom of image
-# use plots to empirically adjust
-ilanes = [(25, 27), (35, 40)]
+MAX_LANES = 4
 
 
 def main(
@@ -65,14 +61,21 @@ def counter(
     if doplot:
         try:
             from matplotlib.pyplot import pause
+
             h = fig_create(doplot, mot[0], param, time, CarCount)
         except Exception as exc:
             doplot = False
             print(f"Matplotlib not available, skipping plots  {exc}", file=sys.stderr)
     # %% main program loop over each frame of motion data
     for i, m in enumerate(bmot):
-        # %% process each frame
-        N = spatial_discrim(m, param, h)
+        # %% process each lane
+        N = 0
+        for k in range(MAX_LANES):
+            if f"lane{k:d}" in param:
+                N += spatial_discrim(
+                    m, param[f"lane{k:d}"], param["iLPF"], param["detect_min"], param["detect_max"], h=h.get(f"h2{k}")
+                )
+        # %% update cumulative count
         if i % frame_count_interval == 0:
             j += 1
             CarCount[j] = N
@@ -95,39 +98,41 @@ def get_param(fn: Path) -> typing.Dict[str, typing.Any]:
     fn = Path(fn).expanduser()
     C = configparser.ConfigParser()
     C.read_string(fn.read_text(), source=str(fn))
-    param = {
+    param: typing.Dict[str, typing.Any] = {
         "detect_max": C.getfloat("filter", "detect_max"),
         "detect_min": C.getfloat("filter", "detect_min"),
-        "noise_min": C.getfloat("filter", "noise_min"),
+        "noise_min": C.getint("filter", "noise_min"),
         "count_interval_seconds": C.getfloat("filter", "count_interval_seconds"),
         "video_fps": C.getfloat("video", "video_fps"),
-        "max_cumulative": C.getfloat("plot", "max_cumulative", fallback=None),
+        "max_cumulative": C.getint("plot", "max_cumulative", fallback=None),
         "max_psd": C.getfloat("plot", "max_psd", fallback=None),
     }
+
+    for k in range(1, MAX_LANES + 1):
+        lane = C.get("lanes", f"lane{k}", fallback=None)
+        if lane is not None:
+            param[f"lane{k}"] = list(map(int, lane.split(",")))
 
     return param
 
 
-def spatial_discrim(mot: np.ndarray, p: typing.Dict[str, typing.Any], h: typing.Dict[str, typing.Any]) -> int:
+def spatial_discrim(
+    mot: np.ndarray, ilane: typing.Tuple[int, int], iLPF: typing.Tuple[int, int], detect_min: float, detect_max: float, h=None
+) -> int:
     """
     implement spatial LPF for two lanes of traffic
     """
-    iLPF = p["iLPF"]
     # %% define two spatial lanes of traffic
-    lane1 = mot[ilanes[0][0]:ilanes[0][1], :].sum(axis=0)
-    lane2 = mot[ilanes[1][0]:ilanes[1][1], :].sum(axis=0)
+    lane = mot[ilane[0]: ilane[1], :].sum(axis=0)
     # %% motion PSD
-    Flane1 = np.fft.fftshift(abs(np.fft.fft(lane1)) ** 2)
-    Flane2 = np.fft.fftshift(abs(np.fft.fft(lane2)) ** 2)
+    Flane = np.fft.fftshift(abs(np.fft.fft(lane)) ** 2)
     # %% motion detected within magnitude limits
-    N1 = int(p["detect_min"] <= Flane1[iLPF[0]:iLPF[1]].sum() <= p["detect_max"])
-    N2 = int(p["detect_min"] <= Flane2[iLPF[0]:iLPF[1]].sum() <= p["detect_max"])
+    N = int(detect_min <= Flane[iLPF[0]: iLPF[1]].sum() <= detect_max)
     # %% plot
-    if "h21" in h:
-        h["h21"].set_ydata(Flane1)
-        h["h22"].set_ydata(Flane2)
+    if h is not None:
+        h.set_ydata(Flane)
 
-    return N1 + N2
+    return N
 
 
 def fig_create(
@@ -139,21 +144,22 @@ def fig_create(
 
     from matplotlib.pyplot import figure
 
+    L = img.shape[-1]
+    fx = np.arange(-L // 2, L // 2)
+
     fg = figure(figsize=(8, 10))
     ax1, ax2, ax3 = fg.subplots(3, 1)
     fg.suptitle("spatial FFT car counting")
 
     h = {"fg": fg, "h1": ax1.imshow(img, origin="upper"), "t1": ax1.set_title("")}
     # plot lanes
-    ax1.axhline(ilanes[0][0], color="cyan", linestyle="--")
-    ax1.axhline(ilanes[0][1], color="cyan", linestyle="--")
-    ax1.axhline(ilanes[1][0], color="orange", linestyle="--")
-    ax1.axhline(ilanes[1][1], color="orange", linestyle="--")
+    colors = ("cyan", "orange", "white", "yellow")
+    for k in range(MAX_LANES):
+        if f"lane{k:d}" in p:
+            ax1.axhline(p[f"lane{k:d}"][0], color=colors[k], linestyle="--")
+            ax1.axhline(p[f"lane{k:d}"][1], color=colors[k], linestyle="--")
+            h[f"h2{k}"], = ax2.plot(fx, [0] * fx.size)
 
-    L = img.shape[-1]
-    fx = np.arange(-L // 2, L // 2)
-    h["h21"], = ax2.plot(fx, [0] * fx.size)
-    h["h22"], = ax2.plot(fx, [0] * fx.size)
     ax2.set_title("Spatial frequency")
     ax2.set_ylim(0, p["max_psd"])
     ax2.set_xlabel("Spatial Frequency bin (arbitrary units)")
