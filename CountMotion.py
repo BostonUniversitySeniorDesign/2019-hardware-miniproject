@@ -101,8 +101,8 @@ def get_param(fn: Path) -> typing.Dict[str, typing.Any]:
         "noise_min": C.getfloat("filter", "noise_min"),
         "count_interval_seconds": C.getfloat("filter", "count_interval_seconds"),
         "video_fps": C.getfloat("video", "video_fps"),
-        "max_cumulative": C.getfloat("plot", "max_cumulative"),
-        "max_psd": C.getfloat("plot", "max_psd"),
+        "max_cumulative": C.getfloat("plot", "max_cumulative", fallback=None),
+        "max_psd": C.getfloat("plot", "max_psd", fallback=None),
     }
 
     return param
