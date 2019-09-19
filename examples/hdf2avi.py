@@ -8,7 +8,7 @@ python hdf2avi.py motion.h5 x    # creates motion_x.avi from motion.h5 variable 
 
 ffmpeg -i motion.avi -vf scale=640:480 -c:v ffv1 motion640.avi
 
-ffmpeg -i motion640.avi -i raw.mp4 -filter_complex hstack out.avi
+ffmpeg -i motion640.avi -i raw.h264 -filter_complex hstack out.avi
 """
 import h5py
 import imageio

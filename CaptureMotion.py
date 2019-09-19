@@ -45,7 +45,7 @@ def main(outdir: Path, duration_sec: float, resolution: typing.Tuple[int, int], 
     outdir = Path(outdir).expanduser() / datetime.now().isoformat()[:-10].replace(":", "")
     outdir.mkdir(parents=True, exist_ok=True)
 
-    video_file = outdir / "raw.mp4"
+    video_file = outdir / "raw.h264"
     print("writing motion vectors to", video_file)
     imgs, time = capture(video_file, duration_sec, resolution, fps)
 
