@@ -21,7 +21,7 @@ def test_counter(filename):
     count, time = counter(filename, "dxdy")
 
     assert count.size == time.size
-    assert count.sum() == 113
+    assert count.sum() == 115
 
 
 @pytest.mark.parametrize("filename", [configfn, str(configfn)])
