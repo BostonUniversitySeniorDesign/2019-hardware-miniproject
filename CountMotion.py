@@ -41,9 +41,9 @@ def counter(
         raise FileNotFoundError(h5fn)
     with h5py.File(h5fn, "r") as f:
         if isinstance(key, str):
-            mot = np.rot90(f[key][start:].astype(np.uint8), axes=(1, 2))
+            mot = np.rot90(abs(f[key][start:]).astype(np.uint8), axes=(1, 2))
         elif isinstance(key, (tuple, list)) and len(key) == 1:
-            mot = np.rot90(f[key[0]][start:].astype(np.uint8), axes=(1, 2))
+            mot = np.rot90(abs(f[key[0]][start:]).astype(np.uint8), axes=(1, 2))
         elif isinstance(key, (tuple, list)) and len(key) == 2:
             mot = np.rot90(np.hypot(f[key[0]][start:], f[key[1]][start:]).astype(np.uint8), axes=(1, 2))
         else:
@@ -110,7 +110,7 @@ def get_param(fn: Path) -> typing.Dict[str, typing.Any]:
 
     for k in range(1, MAX_LANES + 1):
         lane = C.get("lanes", f"lane{k}", fallback=None)
-        if lane is not None:
+        if lane:
             param[f"lane{k}"] = list(map(int, lane.split(",")))
 
     return param
