@@ -13,8 +13,6 @@ config_fn = Path(__file__).parent / "config.ini"
 # these are for mostly horizontal traffic flow near bottom of image
 # use plots to empirically adjust
 ilanes = [(25, 27), (35, 40)]
-max_cumulative = 100
-max_psd = 1000
 
 
 def main(
@@ -98,11 +96,13 @@ def get_param(fn: Path) -> typing.Dict[str, typing.Any]:
     C = configparser.ConfigParser()
     C.read_string(fn.read_text(), source=str(fn))
     param = {
-        "detect_max": C.getfloat("DEFAULT", "detect_max"),
-        "detect_min": C.getfloat("DEFAULT", "detect_min"),
-        "noise_min": C.getfloat("DEFAULT", "noise_min"),
-        "count_interval_seconds": C.getfloat("DEFAULT", "count_interval_seconds"),
-        "video_fps": C.getfloat("DEFAULT", "video_fps"),
+        "detect_max": C.getfloat("filter", "detect_max"),
+        "detect_min": C.getfloat("filter", "detect_min"),
+        "noise_min": C.getfloat("filter", "noise_min"),
+        "count_interval_seconds": C.getfloat("filter", "count_interval_seconds"),
+        "video_fps": C.getfloat("video", "video_fps"),
+        "max_cumulative": C.getfloat("plot", "max_cumulative"),
+        "max_psd": C.getfloat("plot", "max_psd"),
     }
 
     return param
@@ -155,7 +155,7 @@ def fig_create(
     h["h21"], = ax2.plot(fx, [0] * fx.size)
     h["h22"], = ax2.plot(fx, [0] * fx.size)
     ax2.set_title("Spatial frequency")
-    ax2.set_ylim(0, max_psd)
+    ax2.set_ylim(0, p["max_psd"])
     ax2.set_xlabel("Spatial Frequency bin (arbitrary units)")
     ax2.set_ylabel("magnitude$^2$")
     # %% setup rectangular spatial LPF for each lane -- cars are big
@@ -168,7 +168,7 @@ def fig_create(
     ax3.set_xlabel("elapsed time (seconds)")
     ax3.set_ylabel("count")
     ax3.grid(True)
-    ax3.set_ylim(0, max_cumulative)
+    ax3.set_ylim(0, p["max_cumulative"])
     h["h3"], = ax3.plot(time, CarCount)
 
     fg.tight_layout()
